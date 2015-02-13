@@ -1,0 +1,3 @@
+#!/bin/sh
+echo configure the www server
+/usr/sbin/httpd -h /srv/www

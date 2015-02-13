@@ -1,0 +1,4 @@
+config BR2_PACKAGE_ECUAPP
+       bool "ecuApp"
+       help
+         This is initial version of the Buildroot package for lnxEmbdDevice
