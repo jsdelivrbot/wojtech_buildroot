@@ -1,3 +1,24 @@
+2015.02-rc3, Released February 24th, 2015
+
+	Minor fixes.
+
+	Cmake and rebar (erlang) infrastructure fixes.
+
+	Updated/fixed packages: bind, btrfs-progs, busybox, e2fsprogs,
+	evtest, ffmpeg, fltk, gnutls, i2c-tools, imagemagick, libxcb,
+	make, mjpg-streamer, netsnmp, opentyrian, php, polarssl,
+	qt5base, samba, samba4, sudo, util-linux, xserver_xorg-server
+
+2015.02-rc2, Released February 15th, 2015
+
+	Minor fixes.
+
+	raspberrypi: fix kernel sha1 for DT variant.
+
+	Updated/fixed packages: dbus, dvdauthor, git, libsemanage,
+	libsepol, libssh2, mplayer, ntp, openvmtools, python3,
+	qt5base, qt5connectivity, xserver_xorg-server
+
 2015.02-rc1, Released February 8th, 2015
 
 	Fixes all over the tree and new features.
