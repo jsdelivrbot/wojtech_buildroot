@@ -6,7 +6,7 @@ ECUAPP_INSTALL_STAGING = YES
 ECUAPP_INSTALL_TARGET = YES
 
 define ECUAPP_BUILD_CMDS
-	$(@D)/br2_config $(TARGET_CXX) $(@D)
+	$(@D)/br2_config $(TARGET_CXX) $(@D) $(STAGING_DIR)
 	$(MAKE) PROJECT_ROOT=$(@D) -C $(@D)/Src
 endef
 
