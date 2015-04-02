@@ -36,17 +36,23 @@ LINUX_SITE = $(BR2_KERNEL_MIRROR)/linux/kernel/v4.x
 endif
 # release candidates are in testing/ subdir
 ifneq ($(findstring -rc,$(LINUX_VERSION)),)
-LINUX_SITE := $(LINUX_SITE)/testing/
+LINUX_SITE := $(LINUX_SITE)/testing
 endif # -rc
 endif
 
 LINUX_PATCHES = $(call qstrip,$(BR2_LINUX_KERNEL_PATCH))
 
+# We rely on the generic package infrastructure to download and apply
+# remote patches (downloaded from ftp, http or https). For local
+# patches, we can't rely on that infrastructure, because there might
+# be directories in the patch list (unlike for other packages).
+LINUX_PATCH = $(filter ftp://% http://% https://%,$(LINUX_PATCHES))
+
 LINUX_INSTALL_IMAGES = YES
 LINUX_DEPENDENCIES += host-kmod host-lzop
 
 ifeq ($(BR2_LINUX_KERNEL_UBOOT_IMAGE),y)
-	LINUX_DEPENDENCIES += host-uboot-tools
+LINUX_DEPENDENCIES += host-uboot-tools
 endif
 
 LINUX_MAKE_FLAGS = \
@@ -68,7 +74,11 @@ LINUX_VERSION_PROBED = $(shell $(MAKE) $(LINUX_MAKE_FLAGS) -C $(LINUX_DIR) --no-
 ifeq ($(BR2_LINUX_KERNEL_USE_INTREE_DTS),y)
 KERNEL_DTS_NAME = $(call qstrip,$(BR2_LINUX_KERNEL_INTREE_DTS_NAME))
 else ifeq ($(BR2_LINUX_KERNEL_USE_CUSTOM_DTS),y)
-KERNEL_DTS_NAME = $(basename $(notdir $(call qstrip,$(BR2_LINUX_KERNEL_CUSTOM_DTS_PATH))))
+# We keep only the .dts files, so that the user can specify both .dts
+# and .dtsi files in BR2_LINUX_KERNEL_CUSTOM_DTS_PATH. Both will be
+# copied to arch/<arch>/boot/dts, but only the .dts files will
+# actually be generated as .dtb.
+KERNEL_DTS_NAME = $(basename $(filter %.dts,$(notdir $(call qstrip,$(BR2_LINUX_KERNEL_CUSTOM_DTS_PATH)))))
 endif
 
 ifeq ($(BR2_LINUX_KERNEL_DTS_SUPPORT)$(KERNEL_DTS_NAME),y)
@@ -146,29 +156,17 @@ else
 LINUX_IMAGE_PATH = $(KERNEL_ARCH_PATH)/boot/$(LINUX_IMAGE_NAME)
 endif # BR2_LINUX_KERNEL_VMLINUX
 
-define LINUX_DOWNLOAD_PATCHES
-	$(if $(LINUX_PATCHES),
-		@$(call MESSAGE,"Download additional patches"))
-	$(foreach patch,$(filter ftp://% http://% https://%,$(LINUX_PATCHES)),\
-		$(call DOWNLOAD_WGET,$(patch),$(notdir $(patch)))$(sep))
-endef
-
-LINUX_POST_DOWNLOAD_HOOKS += LINUX_DOWNLOAD_PATCHES
-
-define LINUX_APPLY_PATCHES
-	for p in $(LINUX_PATCHES) ; do \
-		if echo $$p | grep -q -E "^ftp://|^http://|^https://" ; then \
-			$(APPLY_PATCHES) $(@D) $(DL_DIR) `basename $$p` ; \
-		elif test -d $$p ; then \
-			$(APPLY_PATCHES) $(@D) $$p linux-\*.patch ; \
+define LINUX_APPLY_LOCAL_PATCHES
+	for p in $(filter-out ftp://% http://% https://%,$(LINUX_PATCHES)) ; do \
+		if test -d $$p ; then \
+			$(APPLY_PATCHES) $(@D) $$p linux-\*.patch || exit 1 ; \
 		else \
-			$(APPLY_PATCHES) $(@D) `dirname $$p` `basename $$p` ; \
+			$(APPLY_PATCHES) $(@D) `dirname $$p` `basename $$p` || exit 1; \
 		fi \
 	done
 endef
 
-LINUX_POST_PATCH_HOOKS += LINUX_APPLY_PATCHES
-
+LINUX_POST_PATCH_HOOKS += LINUX_APPLY_LOCAL_PATCHES
 
 ifeq ($(BR2_LINUX_KERNEL_USE_DEFCONFIG),y)
 KERNEL_SOURCE_CONFIG = $(KERNEL_ARCH_PATH)/configs/$(call qstrip,$(BR2_LINUX_KERNEL_DEFCONFIG))_defconfig
@@ -319,6 +317,14 @@ define LINUX_INSTALL_TARGET_CMDS
 	$(LINUX_INSTALL_HOST_TOOLS)
 endef
 
+# Note: our package infrastructure uses the full-path of the last-scanned
+# Makefile to determine what package we're currently defining, using the
+# last directory component in the path. As such, including other Makefile,
+# like below, before we call one of the *-package macro is usally not
+# working.
+# However, since the files we include here are in the same directory as
+# the current Makefile, we are OK. But this is a hard requirement: files
+# included here *must* be in the same directory!
 include $(sort $(wildcard linux/linux-ext-*.mk))
 
 $(eval $(kconfig-package))

@@ -38,20 +38,6 @@ QT_CFLAGS = $(TARGET_CFLAGS)
 QT_CXXFLAGS = $(TARGET_CXXFLAGS)
 QT_LDFLAGS = $(TARGET_LDFLAGS)
 
-ifeq ($(BR2_LARGEFILE),y)
-QT_CONFIGURE_OPTS += -largefile
-else
-QT_CONFIGURE_OPTS += -no-largefile
-
-# embedded sqlite module forces FILE_OFFSET_BITS=64 unless this is defined
-# webkit internally uses this module as well
-ifneq ($(BR2_PACKAGE_QT_SQLITE_QT)$(BR2_PACKAGE_QT_WEBKIT),)
-QT_CFLAGS += -DSQLITE_DISABLE_LFS
-QT_CXXFLAGS += -DSQLITE_DISABLE_LFS
-endif
-
-endif
-
 # Qt has some assembly function that are not present in thumb1 mode:
 # Error: selected processor does not support Thumb mode `swp r3,r7,[r4]'
 # so, we desactivate thumb mode
@@ -361,8 +347,7 @@ ifeq ($(BR2_PACKAGE_QT_ODBC),y)
 QT_CONFIGURE_OPTS += -qt-sql-odbc
 endif
 ifeq ($(BR2_PACKAGE_QT_PSQL),y)
-QT_CONFIGURE_OPTS += -qt-sql-psql
-QT_CONFIGURE_ENV += PSQL_LIBS=-L$(STAGING_DIR)/usr/lib
+QT_CONFIGURE_OPTS += -qt-sql-psql -psql_config $(STAGING_DIR)/usr/bin/pg_config
 QT_DEPENDENCIES += postgresql
 endif
 ifeq ($(BR2_PACKAGE_QT_SQLITE_QT),y)
