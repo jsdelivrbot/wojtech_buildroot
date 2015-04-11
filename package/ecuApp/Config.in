@@ -1,8 +1,12 @@
 config BR2_PACKAGE_ECUAPP
        bool "ecuApp"
        depends on BR2_PACKAGE_SDL
+       depends on BR2_PACKAGE_FLITE
        help
          This is initial version of the Buildroot package for lnxEmbdDevice
          
 comment "ecuApp depends on the SDL Library"
        depends on !BR2_PACKAGE_SDL
+       
+comment "ecuApp depends on the FLITE "
+       depends on !BR2_PACKAGE_FLITE
