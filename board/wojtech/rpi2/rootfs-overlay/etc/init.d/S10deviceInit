@@ -1,5 +1,6 @@
 # initialize the soundcard driver
 modprobe snd-bcm2835
+modprobe bcm2708_wdog
 
 # initialize the Joystic
 insmod /lib/modules/3.19.3-v7/kernel/drivers/hid/hid-gaff.ko
