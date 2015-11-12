@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-HOSTAPD_VERSION = 2.4
+HOSTAPD_VERSION = 2.5
 HOSTAPD_SITE = http://hostap.epitest.fi/releases
 HOSTAPD_SUBDIR = hostapd
 HOSTAPD_CONFIG = $(HOSTAPD_DIR)/$(HOSTAPD_SUBDIR)/.config
@@ -33,10 +33,6 @@ HOSTAPD_CONFIG_DISABLE =
 # in the hostapd Makefiles as in LIBS+=-lnl-3 ... thus failing
 ifeq ($(BR2_STATIC_LIBS),y)
 HOSTAPD_LIBS += -lnl-3 -lm -lpthread
-endif
-
-ifeq ($(BR2_INET_IPV6),)
-HOSTAPD_CONFIG_DISABLE += CONFIG_IPV6
 endif
 
 # Try to use openssl if it's already available

@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-LIBECORE_VERSION = $(EFL_VERSION)
+LIBECORE_VERSION = 1.7.10
 LIBECORE_SOURCE = ecore-$(LIBECORE_VERSION).tar.bz2
 LIBECORE_SITE = http://download.enlightenment.org/releases
 LIBECORE_LICENSE = BSD-2c
@@ -74,7 +74,10 @@ LIBECORE_CONF_OPTS += --disable-ecore-sdl
 endif
 
 ifeq ($(BR2_PACKAGE_LIBECORE_X),y)
-LIBECORE_CONF_OPTS += --enable-ecore-x
+LIBECORE_CONF_OPTS += --enable-ecore-x \
+	--with-x=$(STAGING_DIR) \
+	--x-includes=$(STAGING_DIR)/usr/include \
+	--x-libraries=$(STAGING_DIR)/usr/lib
 LIBECORE_DEPENDENCIES += xlib_libXext xlib_libX11
 else
 LIBECORE_CONF_OPTS += --disable-ecore-x --disable-ecore-imf-xim

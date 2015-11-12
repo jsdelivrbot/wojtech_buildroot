@@ -7,7 +7,7 @@
 # SDK 5_01_01_01 only support EABIhf so we downgrade to 5_01_00_01 if EABIhf is
 # not available.
 ifeq ($(BR2_ARM_EABIHF),y)
-TI_GFX_VERSION = 5_01_01_01
+TI_GFX_VERSION = 5_01_01_02
 TI_GFX_SOURCE = Graphics_SDK_setuplinux_hardfp_$(TI_GFX_VERSION).bin
 else
 TI_GFX_VERSION = 5_01_00_01
@@ -21,6 +21,13 @@ TI_GFX_LICENSE_FILES = TSPA.txt
 TI_GFX_INSTALL_STAGING = YES
 
 TI_GFX_DEPENDENCIES = linux
+
+# We're building a kernel module without using the kernel-module infra,
+# so we need to tell we want module support in the kernel
+ifeq ($(BR2_PACKAGE_TI_GFX),y)
+LINUX_NEEDS_MODULES = y
+endif
+
 TI_GFX_PROVIDES = libegl libgles powervr
 
 ifeq ($(BR2_PACKAGE_TI_GFX_ES3),y)
@@ -188,6 +195,16 @@ endif
 define TI_GFX_INSTALL_INIT_SYSV
 	$(INSTALL) -D -m 0755 package/ti-gfx/S80ti-gfx \
 		$(TARGET_DIR)/etc/init.d/S80ti-gfx
+endef
+
+define TI_GFX_INSTALL_INIT_SYSTEMD
+	$(INSTALL) -D -m 755 package/ti-gfx/S80ti-gfx \
+		$(TARGET_DIR)/usr/lib/systemd/scripts/ti-gfx
+	$(INSTALL) -D -m 644 package/ti-gfx/ti-gfx.service \
+		$(TARGET_DIR)/usr/lib/systemd/system/ti-gfx.service
+	mkdir -p $(TARGET_DIR)/etc/systemd/system/multi-user.target.wants
+	ln -sf ../../../../usr/lib/systemd/system/ti-gfx.service \
+		$(TARGET_DIR)/etc/systemd/system/multi-user.target.wants/ti-gfx.service
 endef
 
 define TI_GFX_INSTALL_TARGET_CMDS

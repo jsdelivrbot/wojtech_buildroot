@@ -5,7 +5,7 @@
 ################################################################################
 
 # See note below when updating Erlang
-ERLANG_VERSION = 17.4
+ERLANG_VERSION = 17.5
 ERLANG_SITE = http://www.erlang.org/download
 ERLANG_SOURCE = otp_src_$(ERLANG_VERSION).tar.gz
 ERLANG_DEPENDENCIES = host-erlang
@@ -39,6 +39,10 @@ HOST_ERLANG_DEPENDENCIES = host-openssl
 HOST_ERLANG_CONF_OPTS = --without-javac --with-ssl=$(HOST_DIR)/usr
 
 HOST_ERLANG_CONF_OPTS += --without-termcap
+
+ifeq ($(BR2_TOOLCHAIN_HAS_THREADS),)
+ERLANG_CONF_OPTS += --disable-threads
+endif
 
 ifeq ($(BR2_PACKAGE_NCURSES),y)
 ERLANG_CONF_OPTS += --with-termcap

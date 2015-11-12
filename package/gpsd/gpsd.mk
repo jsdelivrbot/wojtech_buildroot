@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-GPSD_VERSION = 3.11
+GPSD_VERSION = 3.15
 GPSD_SITE = http://download-mirror.savannah.gnu.org/releases/gpsd
 GPSD_LICENSE = BSD-3c
 GPSD_LICENSE_FILES = COPYING
@@ -27,11 +27,6 @@ ifeq ($(BR2_PACKAGE_NCURSES),y)
 GPSD_DEPENDENCIES += ncurses
 else
 GPSD_SCONS_OPTS += ncurses=no
-endif
-
-# Disable IPv6, if we don't support it
-ifneq ($(BR2_INET_IPV6),y)
-GPSD_SCONS_OPTS += ipv6=no
 endif
 
 # Build libgpsmm if we've got C++
@@ -107,7 +102,7 @@ ifneq ($(BR2_PACKAGE_GPSD_MTK3301),y)
 GPSD_SCONS_OPTS += mtk3301=no
 endif
 ifneq ($(BR2_PACKAGE_GPSD_NMEA),y)
-GPSD_SCONS_OPTS += nmea=no
+GPSD_SCONS_OPTS += nmea0183=no
 endif
 ifneq ($(BR2_PACKAGE_GPSD_NTRIP),y)
 GPSD_SCONS_OPTS += ntrip=no
@@ -222,6 +217,8 @@ define GPSD_INSTALL_STAGING_CMDS
 		install)
 endef
 
+# After installing the udev rule, make it writable so that this
+# package can be re-built/re-installed.
 ifeq ($(BR2_PACKAGE_HAS_UDEV),y)
 define GPSD_INSTALL_UDEV_RULES
 	(cd $(@D); \
@@ -230,6 +227,7 @@ define GPSD_INSTALL_UDEV_RULES
 		$(SCONS) \
 		$(GPSD_SCONS_OPTS) \
 		udev-install)
+	chmod u+w $(TARGET_DIR)/lib/udev/rules.d/25-gpsd.rules
 endef
 
 GPSD_POST_INSTALL_TARGET_HOOKS += GPSD_INSTALL_UDEV_RULES

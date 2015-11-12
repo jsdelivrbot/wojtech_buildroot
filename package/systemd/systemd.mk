@@ -4,11 +4,10 @@
 #
 ################################################################################
 
-SYSTEMD_VERSION = 219
-SYSTEMD_SITE = http://www.freedesktop.org/software/systemd
-SYSTEMD_SOURCE = systemd-$(SYSTEMD_VERSION).tar.xz
-SYSTEMD_LICENSE = LGPLv2.1+; GPLv2+ for udev; MIT-like license for few source files listed in README
-SYSTEMD_LICENSE_FILES = LICENSE.GPL2 LICENSE.LGPL2.1 LICENSE.MIT
+SYSTEMD_VERSION = 227
+SYSTEMD_SITE = $(call github,systemd,systemd,v$(SYSTEMD_VERSION))
+SYSTEMD_LICENSE = LGPLv2.1+, GPLv2+ (udev), Public Domain (few source files, see README)
+SYSTEMD_LICENSE_FILES = LICENSE.GPL2 LICENSE.LGPL2.1 README
 SYSTEMD_INSTALL_STAGING = YES
 SYSTEMD_DEPENDENCIES = \
 	host-intltool \
@@ -28,7 +27,6 @@ endif
 
 SYSTEMD_CONF_OPTS += \
 	--with-rootprefix= \
-	--with-rootlibdir=/lib \
 	--enable-static=no \
 	--disable-manpages \
 	--disable-selinux \
@@ -37,8 +35,9 @@ SYSTEMD_CONF_OPTS += \
 	--with-dbuspolicydir=/etc/dbus-1/system.d \
 	--with-dbussessionservicedir=/usr/share/dbus-1/services \
 	--with-dbussystemservicedir=/usr/share/dbus-1/system-services \
-	--enable-split-usr \
 	--disable-efi \
+	--disable-gnuefi \
+	--disable-ldconfig \
 	--disable-tests \
 	--disable-dbus \
 	--without-python
@@ -49,6 +48,11 @@ SYSTEMD_CFLAGS = $(TARGET_CFLAGS) -fno-lto
 SYSTEMD_CONF_ENV = \
 	CFLAGS="$(SYSTEMD_CFLAGS)" \
 	ac_cv_path_KMOD=/usr/bin/kmod
+
+define SYSTEMD_RUN_INTLTOOLIZE
+	cd $(@D) && $(HOST_DIR)/usr/bin/intltoolize --force --automake
+endef
+SYSTEMD_PRE_CONFIGURE_HOOKS += SYSTEMD_RUN_INTLTOOLIZE
 
 ifeq ($(BR2_PACKAGE_SYSTEMD_COMPAT),y)
 SYSTEMD_CONF_OPTS += --enable-compat-libs
@@ -63,13 +67,6 @@ else
 SYSTEMD_CONF_OPTS += --disable-acl
 endif
 
-ifeq ($(BR2_PACKAGE_LIBGLIB2),y)
-SYSTEMD_CONF_OPTS += --enable-gudev
-SYSTEMD_DEPENDENCIES += libglib2
-else
-SYSTEMD_CONF_OPTS += --disable-gudev
-endif
-
 ifeq ($(BR2_PACKAGE_LIBSECCOMP),y)
 SYSTEMD_CONF_OPTS += --enable-seccomp
 SYSTEMD_DEPENDENCIES += libseccomp
@@ -77,17 +74,21 @@ else
 SYSTEMD_CONF_OPTS += --disable-seccomp
 endif
 
+ifeq ($(BR2_PACKAGE_SYSTEMD_KDBUS),y)
+SYSTEMD_CONF_OPTS += --enable-kdbus
+else
+SYSTEMD_CONF_OPTS += --disable-kdbus
+endif
+
 ifeq ($(BR2_PACKAGE_SYSTEMD_ALL_EXTRAS),y)
-SYSTEMD_DEPENDENCIES += \
-	xz 		\
-	libgcrypt
-SYSTEMD_CONF_OPTS += 	\
-	--enable-xz 	\
+SYSTEMD_DEPENDENCIES += xz libgcrypt
+SYSTEMD_CONF_OPTS += \
+	--enable-xz \
 	--enable-gcrypt	\
 	--with-libgcrypt-prefix=$(STAGING_DIR)/usr
 else
-SYSTEMD_CONF_OPTS += 	\
-	--disable-xz 	\
+SYSTEMD_CONF_OPTS += \
+	--disable-xz \
 	--disable-gcrypt
 endif
 
@@ -131,14 +132,6 @@ else
 SYSTEMD_CONF_OPTS += --disable-smack
 endif
 
-ifeq ($(BR2_PACKAGE_BASH),)
-SYSTEMD_CONF_OPTS += --with-bashcompletiondir=
-endif
-
-ifeq ($(BR2_PACKAGE_ZSH),)
-SYSTEMD_CONF_OPTS += --with-zshcompletiondir=
-endif
-
 # mq_getattr needs -lrt
 SYSTEMD_MAKE_OPTS += LIBS=-lrt
 SYSTEMD_MAKE_OPTS += LDFLAGS+=-ldl
@@ -149,7 +142,8 @@ define SYSTEMD_INSTALL_INIT_HOOK
 	ln -fs ../bin/systemctl $(TARGET_DIR)/sbin/poweroff
 	ln -fs ../bin/systemctl $(TARGET_DIR)/sbin/reboot
 
-	ln -fs ../../../lib/systemd/system/multi-user.target $(TARGET_DIR)/etc/systemd/system/default.target
+	ln -fs ../../../lib/systemd/system/multi-user.target \
+		$(TARGET_DIR)/etc/systemd/system/default.target
 endef
 
 define SYSTEMD_INSTALL_MACHINEID_HOOK
@@ -161,17 +155,10 @@ define SYSTEMD_SANITIZE_PATH_IN_UNITS
 		-exec $(SED) 's,$(HOST_DIR),,g' {} \;
 endef
 
-# Disable ldconfig.service, as /sbin/ldconfig is not available when the
-# target is built with a glibc-based toolchain.
-define SYSTEMD_DISABLE_LDCONFIG_SERVICE_HOOK
-	rm -f $(TARGET_DIR)/lib/systemd/system/sysinit.target.wants/ldconfig.service
-endef
-
 SYSTEMD_POST_INSTALL_TARGET_HOOKS += \
 	SYSTEMD_INSTALL_INIT_HOOK \
 	SYSTEMD_INSTALL_MACHINEID_HOOK \
 	SYSTEMD_INSTALL_RESOLVCONF_HOOK \
-	SYSTEMD_DISABLE_LDCONFIG_SERVICE_HOOK \
 	SYSTEMD_SANITIZE_PATH_IN_UNITS
 
 define SYSTEMD_USERS

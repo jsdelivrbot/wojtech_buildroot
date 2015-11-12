@@ -6,7 +6,7 @@ HOSTMAKE = $(MAKE)
 endif
 HOSTMAKE := $(shell which $(HOSTMAKE) || type -p $(HOSTMAKE) || echo make)
 
-# If BR2_LEVEL is 0, scale the maximum concurrency with the number of
+# If BR2_JLEVEL is 0, scale the maximum concurrency with the number of
 # CPUs. An additional job is used in order to keep processors busy
 # while waiting on I/O.
 # If the number of processors is not available, assume one.
@@ -18,7 +18,8 @@ PARALLEL_JOBS := $(BR2_JLEVEL)
 endif
 
 MAKE1 := $(HOSTMAKE) -j1
-MAKE := $(HOSTMAKE) $(if $(PARALLEL_JOBS),-j$(PARALLEL_JOBS))
+override MAKE = $(HOSTMAKE) \
+	$(if $(findstring j,$(filter-out --%,$(MAKEFLAGS))),,-j$(PARALLEL_JOBS))
 
 ifeq ($(BR2_TOOLCHAIN_BUILDROOT),y)
 TARGET_VENDOR = $(call qstrip,$(BR2_TOOLCHAIN_BUILDROOT_VENDOR))
@@ -90,7 +91,7 @@ endif
 # code size and performance, the linker can usually optimize away the
 # overhead when a call ends up within a certain range.
 #
-# Use text-section-literals for Xtensa globally.
+# Use auto-litpools for Xtensa globally.
 # Collecting literals into separate section can be advantageous if that
 # section is placed into DTCM at link time. This is applicable for code
 # running on bare metal, but makes no sense under linux, where userspace
@@ -99,7 +100,7 @@ endif
 # instruction can only access literals in 256 KBytes range.
 #
 ifeq ($(BR2_xtensa),y)
-TARGET_ABI += -mlongcalls -mtext-section-literals
+TARGET_ABI += -mlongcalls -mauto-litpools
 endif
 
 ifeq ($(BR2_arc)$(BR2_ARC_ATOMIC_EXT),yy)
@@ -109,22 +110,20 @@ endif
 STAGING_SUBDIR = usr/$(GNU_TARGET_NAME)/sysroot
 STAGING_DIR    = $(HOST_DIR)/$(STAGING_SUBDIR)
 
-TARGET_OPTIMIZATION := $(call qstrip,$(BR2_TARGET_OPTIMIZATION))
-
 ifeq ($(BR2_OPTIMIZE_0),y)
-TARGET_OPTIMIZATION += -O0
+TARGET_OPTIMIZATION = -O0
 endif
 ifeq ($(BR2_OPTIMIZE_1),y)
-TARGET_OPTIMIZATION += -O1
+TARGET_OPTIMIZATION = -O1
 endif
 ifeq ($(BR2_OPTIMIZE_2),y)
-TARGET_OPTIMIZATION += -O2
+TARGET_OPTIMIZATION = -O2
 endif
 ifeq ($(BR2_OPTIMIZE_3),y)
-TARGET_OPTIMIZATION += -O3
+TARGET_OPTIMIZATION = -O3
 endif
 ifeq ($(BR2_OPTIMIZE_S),y)
-TARGET_OPTIMIZATION += -Os
+TARGET_OPTIMIZATION = -Os
 endif
 ifeq ($(BR2_DEBUG_1),y)
 TARGET_DEBUGGING = -g1
@@ -184,14 +183,6 @@ TARGET_RANLIB   = $(TARGET_CROSS)ranlib
 TARGET_READELF  = $(TARGET_CROSS)readelf
 TARGET_OBJCOPY  = $(TARGET_CROSS)objcopy
 TARGET_OBJDUMP  = $(TARGET_CROSS)objdump
-
-TARGET_CC_NOCCACHE  := $(TARGET_CC)
-TARGET_CXX_NOCCACHE := $(TARGET_CXX)
-
-ifeq ($(BR2_CCACHE),y)
-TARGET_CC  := $(CCACHE) $(TARGET_CC)
-TARGET_CXX := $(CCACHE) $(TARGET_CXX)
-endif
 
 ifeq ($(BR2_STRIP_strip),y)
 STRIP_STRIP_DEBUG := --strip-debug
@@ -264,7 +255,6 @@ TARGET_CONFIGURE_OPTS = \
 	CC_FOR_BUILD="$(HOSTCC)" \
 	GCC_FOR_BUILD="$(HOSTCC)" \
 	CXX_FOR_BUILD="$(HOSTCXX)" \
-	FC_FOR_BUILD="$(HOSTFC)" \
 	LD_FOR_BUILD="$(HOSTLD)" \
 	CPPFLAGS_FOR_BUILD="$(HOST_CPPFLAGS)" \
 	CFLAGS_FOR_BUILD="$(HOST_CFLAGS)" \
@@ -370,20 +360,8 @@ else
 DISABLE_NLS :=--disable-nls
 endif
 
-ifeq ($(BR2_INET_IPV6),y)
-DISABLE_IPV6 = --enable-ipv6
-else
-DISABLE_IPV6 = --disable-ipv6
-endif
-
 ifneq ($(BR2_INSTALL_LIBSTDCPP),y)
 TARGET_CONFIGURE_OPTS += CXX=false
-endif
-
-ifeq ($(BR2_ENABLE_DEBUG),y)
-ENABLE_DEBUG := --enable-debug
-else
-ENABLE_DEBUG := --disable-debug
 endif
 
 ifeq ($(BR2_STATIC_LIBS),y)
@@ -411,3 +389,4 @@ include package/pkg-virtual.mk
 include package/pkg-generic.mk
 include package/pkg-kconfig.mk
 include package/pkg-rebar.mk
+include package/pkg-kernel-module.mk
