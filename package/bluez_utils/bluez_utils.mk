@@ -11,7 +11,7 @@ BLUEZ_UTILS_INSTALL_STAGING = YES
 BLUEZ_UTILS_DEPENDENCIES = dbus libglib2
 BLUEZ_UTILS_CONF_OPTS = --enable-test --enable-tools
 BLUEZ_UTILS_AUTORECONF = YES
-BLUEZ_UTILS_LICENSE = GPLv2+ LGPLv2.1+
+BLUEZ_UTILS_LICENSE = GPLv2+, LGPLv2.1+
 BLUEZ_UTILS_LICENSE_FILES = COPYING COPYING.LIB
 
 # BlueZ 3.x compatibility
@@ -52,6 +52,11 @@ BLUEZ_UTILS_CONF_OPTS +=	\
 else
 BLUEZ_UTILS_CONF_OPTS +=	\
 	--disable-usb
+endif
+
+# PIE is broken for m68k
+ifeq ($(BR2_m68k),y)
+BLUEZ_UTILS_CONF_OPTS += --disable-pie
 endif
 
 $(eval $(autotools-package))
