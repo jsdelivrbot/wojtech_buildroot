@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-IMAGEMAGICK_VERSION = 7.0.2-1
+IMAGEMAGICK_VERSION = 7.0.3-4
 IMAGEMAGICK_SOURCE = ImageMagick-$(IMAGEMAGICK_VERSION).tar.xz
 IMAGEMAGICK_SITE = http://www.imagemagick.org/download/releases
 IMAGEMAGICK_LICENSE = Apache-2.0
@@ -30,13 +30,13 @@ IMAGEMAGICK_CONF_OPTS = \
 	--without-gslib \
 	--without-gvc \
 	--without-jbig \
-	--without-jp2 \
 	--without-lqr \
 	--without-openexr \
 	--without-perl \
 	--without-raqm \
 	--without-wmf \
-	--without-x
+	--without-x \
+	--with-gs-font-dir=/usr/share/fonts/gs
 
 IMAGEMAGICK_DEPENDENCIES = host-pkgconf
 

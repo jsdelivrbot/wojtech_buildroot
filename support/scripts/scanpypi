@@ -416,7 +416,8 @@ class BuildrootPackage():
             license=', '.join(licenses))
         lines.append(license_line)
 
-        filenames = ['LICENSE', 'LICENSE.TXT', 'COPYING', 'COPYING.TXT']
+        filenames = ['LICENCE', 'LICENSE', 'LICENSE.TXT', 'COPYING',
+		     'COPYING.TXT']
         license_files = list(find_file_upper_case(filenames, self.tmp_extract))
         license_files = [license.replace(self.tmp_extract, '')[1:]
                          for license in license_files]
@@ -466,8 +467,6 @@ class BuildrootPackage():
         lines += self.__create_mk_download_info()
         lines += self.__create_mk_setup()
         lines += self.__create_mk_license()
-        if self.pkg_req:
-            lines += self.__create_mk_requirements()
 
         lines.append('\n')
         lines.append('$(eval $(python-package))')
@@ -484,15 +483,14 @@ class BuildrootPackage():
         print('Creating {filename}...'.format(filename=path_to_hash))
         lines = []
         if self.used_url['md5_digest']:
-            md5_comment = '# md5 from {url}\n'.format(url=self.metadata_url)
+            md5_comment = '# md5 from {url}, sha256 locally computed\n'.format(
+		url=self.metadata_url)
             lines.append(md5_comment)
             hash_line = '{method}\t{digest}  {filename}\n'.format(
                 method='md5',
                 digest=self.used_url['md5_digest'],
                 filename=self.filename)
             lines.append(hash_line)
-        sha256_comment = '# sha256 calculated by scanpypi\n'
-        lines.append(sha256_comment)
         digest = hashlib.sha256(self.as_string).hexdigest()
         hash_line = '{method}\t{digest}  {filename}\n'.format(
             method='sha256',
@@ -518,7 +516,7 @@ class BuildrootPackage():
         lines.append(bool_line)
         if self.pkg_req:
             for dep in self.pkg_req:
-                dep_line = '\tselect BR2_PACKAGE_{req}\n'.format(
+                dep_line = '\tselect BR2_PACKAGE_{req} # runtime\n'.format(
                     req=dep.upper().replace('-', '_'))
                 lines.append(dep_line)
 
@@ -527,6 +525,11 @@ class BuildrootPackage():
         help_lines = textwrap.wrap(self.metadata['info']['summary'],
                                    initial_indent='\t  ',
                                    subsequent_indent='\t  ')
+
+        # make sure a help text is terminated with a full stop
+        if help_lines[-1][-1] != '.':
+            help_lines[-1] += '.'
+
         # \t + two spaces is 3 char long
         help_lines.append('')
         help_lines.append('\t  ' + self.metadata['info']['home_page'])

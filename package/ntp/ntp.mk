@@ -15,6 +15,7 @@ NTP_CONF_OPTS = \
 	--with-shared \
 	--program-transform-name=s,,, \
 	--disable-tickadj \
+	--disable-debugging \
 	--with-yielding-select=yes \
 	--disable-local-libevent
 # 0002-ntp-syscalls-fallback.patch
@@ -40,6 +41,12 @@ NTP_CONF_OPTS += --enable-ATOM
 NTP_DEPENDENCIES += pps-tools
 else
 NTP_CONF_OPTS += --disable-ATOM
+endif
+
+ifeq ($(BR2_PACKAGE_NTP_NTP_SHM_CLK),y)
+NTP_CONF_OPTS += --enable-SHM
+else
+NTP_CONF_OPTS += --disable-SHM
 endif
 
 NTP_INSTALL_FILES_$(BR2_PACKAGE_NTP_NTP_KEYGEN) += util/ntp-keygen

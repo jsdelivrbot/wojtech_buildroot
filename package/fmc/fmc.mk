@@ -1,11 +1,10 @@
-
 ################################################################################
 #
 # fmc
 #
 ################################################################################
 
-FMC_VERSION = fsl-sdk-v1.8
+FMC_VERSION = fsl-sdk-v2.0
 FMC_SITE = git://git.freescale.com/ppc/sdk/fmc.git
 FMC_LICENSE = MIT
 FMC_LICENSE_FILES = COPYING

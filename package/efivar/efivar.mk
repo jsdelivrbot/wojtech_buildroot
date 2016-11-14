@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-EFIVAR_VERSION = 0.23
+EFIVAR_VERSION = 28
 EFIVAR_SITE = $(call github,rhinstaller,efivar,$(EFIVAR_VERSION))
 EFIVAR_LICENSE = LGPLv2.1
 EFIVAR_LICENSE_FILES = COPYING
@@ -21,9 +21,9 @@ EFIVAR_MAKE_OPTS = \
 	BINTARGETS=efivar \
 	LDFLAGS="$(TARGET_LDFLAGS) -fPIC"
 
-# Explicitly linking with shared libgcc is required on MicroBlaze,
-# otherwise it fails due to FDE encoding in static libgcc.
-ifeq ($(BR2_microblaze),y)
+# Explicitly linking with shared libgcc is required on MicroBlaze and
+# Nios II, otherwise it fails due to FDE encoding in static libgcc.
+ifeq ($(BR2_microblaze)$(BR2_nios2),y)
 EFIVAR_MAKE_OPTS += SOFLAGS="-shared -shared-libgcc"
 endif
 

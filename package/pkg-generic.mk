@@ -95,6 +95,21 @@ define check_host_rpath
 endef
 GLOBAL_INSTRUMENTATION_HOOKS += check_host_rpath
 
+define step_check_build_dir_one
+	if [ -d $(2) ]; then \
+		printf "%s: installs files in %s\n" $(1) $(2) >&2; \
+		exit 1; \
+	fi
+endef
+
+define step_check_build_dir
+	$(if $(filter install-staging,$(2)),\
+		$(if $(filter end,$(1)),$(call step_check_build_dir_one,$(3),$(STAGING_DIR)/$(O))))
+	$(if $(filter install-target,$(2)),\
+		$(if $(filter end,$(1)),$(call step_check_build_dir_one,$(3),$(TARGET_DIR)/$(O))))
+endef
+GLOBAL_INSTRUMENTATION_HOOKS += step_check_build_dir
+
 # User-supplied script
 ifneq ($(BR2_INSTRUMENTATION_SCRIPTS),)
 define step_user
@@ -317,6 +332,16 @@ be selected at a time. Please fix your configuration)
 endif
 endef
 
+define pkg-graph-depends
+	@$$(INSTALL) -d $$(GRAPHS_DIR)
+	@cd "$$(CONFIG_DIR)"; \
+	$$(TOPDIR)/support/scripts/graph-depends $$(BR2_GRAPH_DEPS_OPTS) \
+		-p $(1) $(2) -o $$(GRAPHS_DIR)/$$(@).dot
+	dot $$(BR2_GRAPH_DOT_OPTS) -T$$(BR_GRAPH_OUT) \
+		-o $$(GRAPHS_DIR)/$$(@).$$(BR_GRAPH_OUT) \
+		$$(GRAPHS_DIR)/$$(@).dot
+endef
+
 ################################################################################
 # inner-generic-package -- generates the make targets needed to build a
 # generic package
@@ -386,8 +411,6 @@ ifndef $(2)_VERSION
   $(2)_DL_VERSION := $$($(3)_DL_VERSION)
  else ifdef $(3)_VERSION
   $(2)_DL_VERSION := $$($(3)_VERSION)
- else
-  $(2)_DL_VERSION = undefined
  endif
 else
  $(2)_DL_VERSION := $$(strip $$($(2)_VERSION))
@@ -398,8 +421,8 @@ ifdef $(3)_OVERRIDE_SRCDIR
   $(2)_OVERRIDE_SRCDIR ?= $$($(3)_OVERRIDE_SRCDIR)
 endif
 
-$(2)_BASE_NAME	=  $(1)-$$($(2)_VERSION)
-$(2)_RAW_BASE_NAME = $$($(2)_RAWNAME)-$$($(2)_VERSION)
+$(2)_BASE_NAME	= $$(if $$($(2)_VERSION),$(1)-$$($(2)_VERSION),$(1))
+$(2)_RAW_BASE_NAME = $$(if $$($(2)_VERSION),$$($(2)_RAWNAME)-$$($(2)_VERSION),$$($(2)_RAWNAME))
 $(2)_DL_DIR	=  $$(DL_DIR)/$$($(2)_BASE_NAME)
 $(2)_DIR	=  $$(BUILD_DIR)/$$($(2)_BASE_NAME)
 
@@ -429,7 +452,7 @@ endif
 ifndef $(2)_SOURCE
  ifdef $(3)_SOURCE
   $(2)_SOURCE = $$($(3)_SOURCE)
- else
+ else ifdef $(2)_VERSION
   $(2)_SOURCE			?= $$($(2)_RAW_BASE_NAME).tar.gz
  endif
 endif
@@ -468,6 +491,14 @@ ifndef $(2)_SITE_METHOD
  endif
 endif
 
+# Do not accept to download git submodule if not using the git method
+ifneq ($$($(2)_GIT_SUBMODULES),)
+ ifneq ($$($(2)_SITE_METHOD),git)
+  $$(error $(2) declares having git sub-modules, but does not use the \
+	   'git' method (uses '$$($(2)_SITE_METHOD)' instead))
+ endif
+endif
+
 ifeq ($$($(2)_SITE_METHOD),local)
 ifeq ($$($(2)_OVERRIDE_SRCDIR),)
 $(2)_OVERRIDE_SRCDIR = $$($(2)_SITE)
@@ -503,10 +534,6 @@ $(2)_REDIST_SOURCES_DIR = $$(REDIST_SOURCES_DIR_$$(call UPPERCASE,$(4)))/$$($(2)
 # dependency
 $(2)_ADD_TOOLCHAIN_DEPENDENCY	?= YES
 
-ifeq ($(4),host)
-$(2)_DEPENDENCIES ?= $$(filter-out host-skeleton host-toolchain $(1),\
-	$$(patsubst host-host-%,host-%,$$(addprefix host-,$$($(3)_DEPENDENCIES))))
-endif
 ifeq ($(4),target)
 ifneq ($(1),skeleton)
 $(2)_DEPENDENCIES += skeleton
@@ -570,6 +597,7 @@ $(2)_PRE_INSTALL_IMAGES_HOOKS   ?=
 $(2)_POST_INSTALL_IMAGES_HOOKS  ?=
 $(2)_PRE_LEGAL_INFO_HOOKS       ?=
 $(2)_POST_LEGAL_INFO_HOOKS      ?=
+$(2)_TARGET_FINALIZE_HOOKS      ?=
 
 # human-friendly targets and target sequencing
 $(1):			$(1)-install
@@ -695,14 +723,14 @@ $(1)-show-version:
 $(1)-show-depends:
 			@echo $$($(2)_FINAL_ALL_DEPENDENCIES)
 
+$(1)-show-rdepends:
+			@echo $$($(2)_RDEPENDENCIES)
+
 $(1)-graph-depends: graph-depends-requirements
-			@$$(INSTALL) -d $$(GRAPHS_DIR)
-			@cd "$$(CONFIG_DIR)"; \
-			$$(TOPDIR)/support/scripts/graph-depends $$(BR2_GRAPH_DEPS_OPTS) \
-				-p $(1) -o $$(GRAPHS_DIR)/$$(@).dot
-			dot $$(BR2_GRAPH_DOT_OPTS) -T$$(BR_GRAPH_OUT) \
-				-o $$(GRAPHS_DIR)/$$(@).$$(BR_GRAPH_OUT) \
-				$$(GRAPHS_DIR)/$$(@).dot
+	$(call pkg-graph-depends,$(1),--direct)
+
+$(1)-graph-rdepends: graph-depends-requirements
+	$(call pkg-graph-depends,$(1),--reverse)
 
 $(1)-all-source:	$(1)-source
 $(1)-all-source:	$$(foreach p,$$($(2)_FINAL_ALL_DEPENDENCIES),$$(p)-all-source)
@@ -764,9 +792,9 @@ $$($(2)_TARGET_DIRCLEAN):		PKG=$(2)
 # kernel case, the bootloaders case, and the normal packages case.
 ifeq ($(1),linux)
 $(2)_KCONFIG_VAR = BR2_LINUX_KERNEL
-else ifneq ($$(filter boot/% $(BR2_EXTERNAL)/boot/%,$(pkgdir)),)
+else ifneq ($$(filter boot/% $$(foreach dir,$$(BR2_EXTERNAL_DIRS),$$(dir)/boot/%),$(pkgdir)),)
 $(2)_KCONFIG_VAR = BR2_TARGET_$(2)
-else ifneq ($$(filter toolchain/% $(BR2_EXTERNAL)/toolchain/%,$(pkgdir)),)
+else ifneq ($$(filter toolchain/% $$(foreach dir,$$(BR2_EXTERNAL_DIRS),$$(dir)/toolchain/%),$(pkgdir)),)
 $(2)_KCONFIG_VAR = BR2_$(2)
 else
 $(2)_KCONFIG_VAR = BR2_PACKAGE_$(2)
@@ -776,7 +804,6 @@ endif
 ifneq ($$($(2)_LICENSE_FILES),)
 $(2)_MANIFEST_LICENSE_FILES = $$($(2)_LICENSE_FILES)
 endif
-$(2)_MANIFEST_LICENSE_FILES ?= not saved
 
 # We need to extract and patch a package to be able to retrieve its
 # license files (if any) and the list of patches applied to it (if
@@ -805,7 +832,6 @@ ifneq ($$(call qstrip,$$($(2)_SOURCE)),)
 # is that the license still applies to the files distributed as part
 # of the rootfs, even if the sources are not themselves redistributed.
 ifeq ($$(call qstrip,$$($(2)_LICENSE_FILES)),)
-	@$$(call legal-license-nofiles,$$($(2)_RAW_BASE_NAME),$$(call UPPERCASE,$(4)))
 	@$$(call legal-warning-pkg,$$($(2)_RAW_BASE_NAME),cannot save license ($(2)_LICENSE_FILES not defined))
 else
 	@$$(foreach F,$$($(2)_LICENSE_FILES),$$(call legal-license-file,$$($(2)_RAW_BASE_NAME),$$(F),$$($(2)_DIR)/$$(F),$$(call UPPERCASE,$(4)))$$(sep))
@@ -853,6 +879,10 @@ $$(foreach pkg,$$($(2)_PROVIDES),\
 	$$(eval $$(call virt-provides-single,$$(pkg),$$(call UPPERCASE,$$(pkg)),$(1))$$(sep)))
 endif
 
+# Register package as a reverse-dependencies of all its dependencies
+$$(eval $$(foreach p,$$($(2)_FINAL_ALL_DEPENDENCIES),\
+	$$(call UPPERCASE,$$(p))_RDEPENDENCIES += $(1)$$(sep)))
+
 # Ensure unified variable name conventions between all packages Some
 # of the variables are used by more than one infrastructure; so,
 # rather than duplicating the checks in each infrastructure, we check
@@ -880,6 +910,7 @@ endif
 ifneq ($$($(2)_USERS),)
 PACKAGES_USERS += $$($(2)_USERS)$$(sep)
 endif
+TARGET_FINALIZE_HOOKS += $$($(2)_TARGET_FINALIZE_HOOKS)
 
 ifeq ($$($(2)_SITE_METHOD),svn)
 DL_TOOLS_DEPENDENCIES += svn
@@ -935,6 +966,12 @@ endif
 	$(1)-show-version \
 	$(1)-source \
 	$(1)-source-check
+
+ifneq ($$($(2)_SOURCE),)
+ifeq ($$($(2)_SITE),)
+$$(error $(2)_SITE cannot be empty when $(2)_SOURCE is not)
+endif
+endif
 
 ifeq ($$(patsubst %/,ERROR,$$($(2)_SITE)),ERROR)
 $$(error $(2)_SITE ($$($(2)_SITE)) cannot have a trailing slash)

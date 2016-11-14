@@ -1,4 +1,4 @@
-# From http://www.memcached.org/files/memcached-1.4.26.tar.gz.sha1
-sha1	f0d4f89ead2ac48c6b9e8070178279c0a3d45559	memcached-1.4.26.tar.gz
+# From http://www.memcached.org/files/memcached-1.4.33.tar.gz.sha1
+sha1	e343530c55946ccbdd78c488355b02eaf90b3b46	memcached-1.4.33.tar.gz
 # Calculated based on the hash above
-sha256	4a67800277eec2e523c51d5f620c416e7d0acfde90beacaa26d8e4f6976b43f6	memcached-1.4.26.tar.gz
+sha256	83726c8d68258c56712373072abb25a449c257398075a39ec0867fd8ba69771d	memcached-1.4.33.tar.gz
